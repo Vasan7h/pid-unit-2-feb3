@@ -169,64 +169,64 @@ double calibrated_result(uint16_t value,int flag)
     //flag = 0 for reflected power
     if (flag)
     {
-        if (value >=0 && value <=1162.5)
+        if (value >=0 && value <=362.5)
         {
             data =0;
             return data;
         }
         // 0 Watt to 3 Watt
-        else if (value>1162.5&& value<=1517.5)
+        else if (value>362.5&& value<=1512.5)
         {
-            data = (value*0.015428511)-22.93564355;
+            data = (value*0.004762714)-6.726483874;
             data = pow(10,data);
             return data;
         }
         //3 Watt to 100 Watt
-        else if (value >1517.5 && value <=1904.5)
+        else if (value >1512.5 && value <=1881)
         {
-            data =(value*0.003935087)-5.494373567;
+            data =(value*0.004132642)-5.773500461;
             data = pow(10,data);
             return data;
         }
         //100 Watt to 200 Watt
-        else if (value >1904.5 && value <=2039.5)
+        else if (value >1881 && value <=2011.5)
         {
-            data =(value*0.002245897)-2.277310306;
+            data =(value*0.002323341)-2.370205241;
             data = pow(10,data);
             return data;
         }
         //200 Watt to 300 Watt
-        else if (value >2039.5 && value <=2105)
+        else if (value >2011.5 && value <=2086.5)
         {
-            data =(value*0.002655347)-3.112383178;
+            data =(value*0.002319003)-2.361477734;
             data = pow(10,data);
             return data;
         }
         //300 Watt to 400 Watt
-        else if (value >2105 && value <=2157.5)
+        else if (value >2086.5 && value <=2143)
         {
-            data =(value*0.002359079)-2.488739778;
+            data =(value*0.002249642)-2.216757715;
             data = pow(10,data);
             return data;
         }
         //400 Watt to 500 Watt
-        else if (value >2157.5 && value <=2191.5)
+        else if (value >2143 && value <=2177.5)
         {
-            data =(value*0.002907789)-3.672582137;
+            data =(value*0.002746201)-3.28088373;
             data = pow(10,data);
             return data;
         }
         //500 Watt to 600 Watt
-        else if (value >2191.5 && value <=2216.5)
+        else if (value >2177.5 && value <=2204)
         {
-            data =(value*0.003132541)-4.165125833;
+            data =(value*0.002987972)-3.807338044;
             data = pow(10,data);
             return data;
         }
         //600 Watt to 750 Watt
-        else if (value >2216.5 && value <=2232)
+        else if (value >2204 && value <=2227)
         {
-            data =(value*0.006252259)-11.07998061;
+            data =(value*0.004213479)-6.508356083;
             data = pow(10,data);
             return data;
         }
