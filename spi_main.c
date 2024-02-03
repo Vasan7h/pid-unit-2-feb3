@@ -125,11 +125,16 @@ int spi_main()
 
                 if (stable_loop_init_flag)
                 {
-                    prev_pps_dac_value = 0;
+                    prev_pps_dac_value = 0; // condn for not filtering at very first time
                     stable_loop_init_flag = 0;
                 }
+                if (final_reflected_power > 50)
+                {
+                    usleep(20000);
+                    pps_dac_value = prev_pps_dac_value;
+                }
 
-                if ((pps_dac_value >= 245) && (((int)final_forward_power) < 600))
+                if ((pps_dac_value >= 245) && (((int)final_forward_power) < 600))//values are read in last execution
                 {
                     // printf("abs_error %d\n", (fabs(error_cal)));
                     //  stable_loop_init_flag = 1;
@@ -143,6 +148,13 @@ int spi_main()
                         pps_dac_value = (0.24 * (pow_set_pt + 100)) + 85; // dac for overshoot initially
                         printf("overshoot\n");
                         overshoot_flag = 0;
+                    }
+                    //in last execution if ref > 50 then load is tuned, now the imp is matched and giving the last dac value
+                    if (final_reflected_power > 50) //ref power read in last execution
+                    {
+                        usleep(20000);//waiting for tuner to tuning and then set prev dac to get output
+                        pps_dac_value = prev_pps_dac_value;
+                        sol_flag=0; //eventhough the next condition in elseif condn we are not allowed it to be executed thats why solflag=0
                     }
                     else if (sol_flag)
                     {
@@ -263,6 +275,7 @@ int spi_main()
                     error_cal = (pow_set_pt - final_forward_power);
                     load_power = final_forward_power - final_reflected_power;                                 // idea on 4.17pm
                     dac_set(DAC_forw_ref_pow_spi_fd, final_forward_power, final_reflected_power, load_power); // idea on 4.17pm
+
                     if (fabs(error_cal) < 0.02 * pow_set_pt)
                     {
                         stable_loop_init_flag = 1;
