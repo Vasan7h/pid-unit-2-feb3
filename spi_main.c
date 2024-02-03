@@ -19,6 +19,8 @@
 extern int8_t Temperature_i2c_fd;
 int fault_flag = 0;
 int prev_pow_set_pt;
+double err_percent;                  // finding percentage of error
+double ctrl_percent;                 // percentage of val to be reduced from initial overshoot DAC value
 int stable_dac;
 int sol_flag; // for fixing imm mismatch 3 solutions in hand
 double tol = 0;
@@ -166,99 +168,18 @@ int spi_main()
                     }
                     else
                     {
-                        if (offset_flag)
-                        {
-                            prev_pps_dac_value = 0; // prev dac = 0 while entering pid loop for first time
-                        }
-                        // to choose max dac val pow_set_pt of 255
-                        if ((fabs(error_cal)) > (FIFTY_PERCENT * pow_set_pt)) // err > 50% of set_point
-                        {
-                            t_pps_dac_value = (TWENTY_PERCENT * 240); // 20% of max dac val
-                            offset_flag = 1;
-                        }
-                        else
-                        {
-                            t_pps_dac_value = (TEN_PERCENT * 240); // 10% of max dac val
-                        }
-                        if ((fabs(error_cal)) > (TWENTY_PERCENT * pow_set_pt)) // err > 20% set value
-                        {
-                            kp = 0.0065; // 0.65% gain change
-                        }
-                        else
-                        {
-                            kp = 0.002;
-                        }
-                        if (offset_flag)
-                        {
-                            if ((fabs(error_cal)) > (EIGHTY_PERCENT * pow_set_pt))
-                            {
-                                if ((pow_set_pt > 350) && (pow_set_pt < 490))
-                                {
-                                    ki = 0.0024789;
-                                    kd = 0.0025;
-                                }
-                                else if ((pow_set_pt >= 220) && (pow_set_pt < 350))
-                                {
-                                    ki = 0.007;
-                                    kd = 0.0013;
-                                }
-                                else if ((pow_set_pt >= 120) && (pow_set_pt < 220))
-                                {
-                                    ki = 0.008;
-                                    kd = 0.0035;
-                                }
-                                else if (pow_set_pt < 120)
-                                {
-                                    kp = 0.009;
-                                    ki = 0.0031;
-                                    kd = 0.005;
-                                }
-                                else
-                                {
-                                    ki = 0.002;
-                                    kd = 0.00125;
-                                }
-                            }
-                            else
-                            {
-                                ki = 0.001;
-                                kd = 0.0013;
-                            }
-                        }
-                        else
-                        {
-                            kd = 0.002;
-                            ki = 0.002;
-                        }
-                        P_control = kp * t_pps_dac_value * error_cal; // 0.1 % gain
-                        // printf("kp : %lf\n", P_control);
-                        Integration_cal = (error_cal + I_pe) / 2; // integral value
-                        // printf("integral : %lf",Integration_cal);
-                        I_control = ki * Integration_cal * t_pps_dac_value; // 0.1 % gain
-                        // printf("ki : %lf\n", I_control);
-                        Differentiation_cal = (error_cal - D_pe);
-                        // printf("derivative : %lf",Differentiation_cal);     // derivative
-                        D_control = kd * Differentiation_cal * t_pps_dac_value; // 0.1 % gain
-                        // printf("kd: %lf\n", D_control);
-                        I_pe = error_cal;                                                 // storing previous error
-                        D_pe = error_cal;                                                 // storing previous error
-                        pps_dac_value_PID = (int16_t)(P_control + I_control + D_control); // casting double to int
-                        printf(" PPS PID value: %d\n", pps_dac_value_PID);
-                        err_sign = ((((int32_t)(fabs(error_cal))) / ((int32_t)error_cal)));
-                        if ((fabs(error_cal) > (0.03 * pow_set_pt)) && (!offset_flag))
-                        {
-                            toler_set = 2; // changed from 1 to 2
-                            condition_check = (toler_set)*err_sign;
-                        }
-                        else
-                        {
-                            toler_set = 1; // changed from 1 to 2
-                            condition_check = (toler_set)*err_sign;
-                        }
-                        // adding offset to acheive desired power
-                        pps_dac_value_PID = pps_dac_value_PID + condition_check + prev_pps_dac_value;
+                        // logic to calculate DAC value
+                        err_percent = ((error_cal / pow_set_pt) * 100);
+                        printf("err_cal %lf\n", error_cal);
+                        printf("powstpt %d\n", pow_set_pt);
+                        printf("in else\n");
+                        ctrl_percent = err_percent / (err_percent + pow_set_pt);
+
+                        ctrl_percent = (((int)(ctrl_percent * 1000)) - 0.8) / 1000;// reducing 0.8% from ctrl perc
+                        
+                        // printf("perc_to_reduce_from_shoot_DAC %lf\n", ctrl_percent);
+                        pps_dac_value = prev_pps_dac_value + (prev_pps_dac_value * ctrl_percent); 
                         pid_overflow_fix();
-                        // in order to create an overshoot
                     }
                     printf("dac val after const %d\n", pps_dac_value);
                     // updating dac for pps
@@ -382,9 +303,9 @@ void ref_power_condition_check(void)
 
 void pid_overflow_fix(void)
 {
-    if (pps_dac_value_PID > 255)
+    if (pps_dac_value > 255)
     {
-        pps_dac_value_PID = 255;
+        pps_dac_value = 255;
     }
     pps_dac_value = (uint8_t)pps_dac_value_PID;
 }
