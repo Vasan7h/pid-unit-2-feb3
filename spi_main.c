@@ -134,7 +134,7 @@ int spi_main()
                     pps_dac_value = prev_pps_dac_value;
                 }
 
-                if ((pps_dac_value >= 245) && (((int)final_forward_power) < 600))//values are read in last execution
+                if ((pps_dac_value >= 245) && (((int)final_forward_power) < 600)) // values are read in last execution
                 {
                     // printf("abs_error %d\n", (fabs(error_cal)));
                     //  stable_loop_init_flag = 1;
@@ -149,12 +149,12 @@ int spi_main()
                         printf("overshoot\n");
                         overshoot_flag = 0;
                     }
-                    //in last execution if ref > 50 then load is tuned, now the imp is matched and giving the last dac value
-                    if (final_reflected_power > 50) //ref power read in last execution
+                    // in last execution if ref > 50 then load is tuned, now the imp is matched and giving the last dac value
+                    if (final_reflected_power > 50) // ref power read in last execution
                     {
-                        usleep(20000);//waiting for tuner to tuning and then set prev dac to get output
+                        usleep(20000); // waiting for tuner to tuning and then set prev dac to get output
                         pps_dac_value = prev_pps_dac_value;
-                        sol_flag=0; //eventhough the next condition in elseif condn we are not allowed it to be executed thats why solflag=0
+                        sol_flag = 0; // eventhough the next condition in elseif condn we are not allowed it to be executed thats why solflag=0
                     }
                     else if (sol_flag)
                     {
@@ -535,3 +535,5 @@ int spi_main()
         pps_dac_setting(0, DAC_spi_fd);
         system_ready();
     }
+    
+}
