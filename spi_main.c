@@ -337,203 +337,201 @@ int spi_main()
         }
         return 0;
     }
+}
+void Read_forward_power(void)
+{
+    forward_power = avg_value(EMB_spi_fd, FOR_POW);
+    printf("raw forw %lf\n", forward_power);
+    final_forward_power = calibrated_result(forward_power, FOR_POW);
+    printf("forw pow :    %lf W \n", final_forward_power);
+}
 
-    void Read_forward_power(void)
-    {
-        forward_power = avg_value(EMB_spi_fd, FOR_POW);
-        printf("raw forw %lf\n", forward_power);
-        final_forward_power = calibrated_result(forward_power, FOR_POW);
-        printf("forw pow :    %lf W \n", final_forward_power);
-    }
+void Read_reflected_power(void)
+{
+    reflected_power = avg_value(EMB_spi_fd, REF_POW);
+    printf("raw ref %lf\n", reflected_power);
+    final_reflected_power = calibrated_result(reflected_power, REF_POW);
+    printf("Ref pow:     %lf W\n", final_reflected_power);
+    printf("\n");
+}
 
-    void Read_reflected_power(void)
+void ref_power_condition_check(void)
+{
+    if (final_reflected_power > 200) // checking for max reflected power
     {
-        reflected_power = avg_value(EMB_spi_fd, REF_POW);
-        printf("raw ref %lf\n", reflected_power);
-        final_reflected_power = calibrated_result(reflected_power, REF_POW);
-        printf("Ref pow:     %lf W\n", final_reflected_power);
-        printf("\n");
-    }
-
-    void ref_power_condition_check(void)
-    {
-        if (final_reflected_power > 200) // checking for max reflected power
+        // in pid overshoot may occur in that condition reflection detects means pid will get exit
+        // so in this case we are not supposed to exit
+        if (final_forward_power < pow_set_pt)
         {
-            // in pid overshoot may occur in that condition reflection detects means pid will get exit
-            // so in this case we are not supposed to exit
-            if (final_forward_power < pow_set_pt)
-            {
-                printf("Max Power Detected!!!!\n");
-                ref_fault_flag = 1;
-                set_gpio(MAX_POWER, ON);
-            }
-            else
-            {
-                ref_fault_flag = 0;
-            }
-            // fault();
+            printf("Max Power Detected!!!!\n");
+            ref_fault_flag = 1;
+            set_gpio(MAX_POWER, ON);
         }
         else
         {
-            set_gpio(MAX_POWER, OFF);
             ref_fault_flag = 0;
         }
+        // fault();
     }
-
-    void pid_overflow_fix(void)
+    else
     {
-        if (pps_dac_value_PID > 255)
-        {
-            pps_dac_value_PID = 255;
-        }
-        pps_dac_value = (uint8_t)pps_dac_value_PID;
+        set_gpio(MAX_POWER, OFF);
+        ref_fault_flag = 0;
     }
+}
 
-    void power_set_point(void)
+void pid_overflow_fix(void)
+{
+    if (pps_dac_value_PID > 255)
     {
-        data = SPI1SS1_ADC_readRegister(SPI1SS1_ADC_MCU_fd, spi3_trx);
-        printf("raw_adc %d\n", data);
-        a_dc = (float)data * 0.05;
-        printf("adc_manipulated %lf\n", a_dc);
-        if (a_dc > 7)
+        pps_dac_value_PID = 255;
+    }
+    pps_dac_value = (uint8_t)pps_dac_value_PID;
+}
+
+void power_set_point(void)
+{
+    data = SPI1SS1_ADC_readRegister(SPI1SS1_ADC_MCU_fd, spi3_trx);
+    printf("raw_adc %d\n", data);
+    a_dc = (float)data * 0.05;
+    printf("adc_manipulated %lf\n", a_dc);
+    if (a_dc > 7)
+    {
+        a_dc = a_dc - 0.05;
+    }
+    if (pow_set_pt > 298)
+    {
+        pow_set_pt = (a_dc * 60) + 1;
+    }
+    // printf("set_pt %d\n",pow_set_pt);
+    //  pow_set_pt=pow_set_pt;
+    if (pow_set_pt >= 600) // limited for 600 W
+    {
+        pow_set_pt = 600;
+    }
+    else
+    {
+        pow_set_pt = (a_dc * 60);
+    }
+}
+
+void temp_functioning(void)
+{
+    Temp_write_register(Temperature_i2c_fd, SLAVE_ADDR, CLK_STRECH_EN_MSB, CLK_STRECH_EN_LSB);
+    over_heat_detect = Temp_read_register(Temperature_i2c_fd, SLAVE_ADDR);
+    // printf("Overheat: %d\n",over_heat_detect);
+    if (over_heat_detect == 1)
+    {
+        fault_flag = 1;
+        fault();
+    }
+    else
+    {
+        fault_flag = 0;
+        if (!over_heat_detect)
         {
-            a_dc = a_dc - 0.05;
-        }
-        if (pow_set_pt > 298)
-        {
-            pow_set_pt = (a_dc * 60) + 1;
-        }
-        // printf("set_pt %d\n",pow_set_pt);
-        //  pow_set_pt=pow_set_pt;
-        if (pow_set_pt >= 600) // limited for 600 W
-        {
-            pow_set_pt = 600;
+            overheat_warn_flag = 1;
         }
         else
         {
-            pow_set_pt = (a_dc * 60);
+            overheat_warn_flag = 0;
         }
     }
+}
 
-    void temp_functioning(void)
+void rf_on_off_interlock_functioning(void)
+{
+    rf_control = gpio_get_fd_to_value(RF_CONTROL); // RF on off control
+    // printf("In gpio 118(RF on/off control): %d\n", rf_control);
+    if (rf_control)
     {
-        Temp_write_register(Temperature_i2c_fd, SLAVE_ADDR, CLK_STRECH_EN_MSB, CLK_STRECH_EN_LSB);
-        over_heat_detect = Temp_read_register(Temperature_i2c_fd, SLAVE_ADDR);
-        // printf("Overheat: %d\n",over_heat_detect);
-        if (over_heat_detect == 1)
-        {
-            fault_flag = 1;
-            fault();
-        }
-        else
-        {
-            fault_flag = 0;
-            if (!over_heat_detect)
-            {
-                overheat_warn_flag = 1;
-            }
-            else
-            {
-                overheat_warn_flag = 0;
-            }
-        }
-    }
+        // printf("RF is ON!!");
+        set_gpio(RF_STATUS, ON);
 
-    void rf_on_off_interlock_functioning(void)
-    {
-        rf_control = gpio_get_fd_to_value(RF_CONTROL); // RF on off control
-        // printf("In gpio 118(RF on/off control): %d\n", rf_control);
-        if (rf_control)
+        interlock = gpio_get_fd_to_value(INTERLOCK_GP); // interlock
+        // printf("In gpio 117(interlock): %d\n", interlock);
+        // interlock signal is low when connected so rf needs to be on
+        if (interlock)
         {
-            // printf("RF is ON!!");
-            set_gpio(RF_STATUS, ON);
-
-            interlock = gpio_get_fd_to_value(INTERLOCK_GP); // interlock
-            // printf("In gpio 117(interlock): %d\n", interlock);
-            // interlock signal is low when connected so rf needs to be on
-            if (interlock)
-            {
-                // printf("\tInterlock is in Open!!!!\n");
-                interlock_fault();
-                interlock_flag = 1;
-            }
-            else
-            {
-                //  printf("\tInterlock is Connected!!!!\n");
-                interlock_flag = 0;
-                rf_on_led();
-            }
-        }
-        else
-        {
-            // printf("RF is OFF!!\n");
-            set_gpio(RF_STATUS, OFF);
+            // printf("\tInterlock is in Open!!!!\n");
+            interlock_fault();
             interlock_flag = 1;
-            system_ready();
+        }
+        else
+        {
+            //  printf("\tInterlock is Connected!!!!\n");
+            interlock_flag = 0;
+            rf_on_led();
         }
     }
-
-    void plasma_init(void)
+    else
     {
-        // spi initial setup
-        SPI1SS1_ADC_MCU_fd = spi_init_setup(1);
-        if (SPI1SS1_ADC_MCU_fd != -1)
-            printf("SPI initial setup for SPI1SS1_ADC_MCU_fd successful\n");
-        DAC_spi_fd = spi_initial_setup(2);
-        if (DAC_spi_fd != -1)
-            printf("SPI initial setup for pps control successful\n");
-        EMB_spi_fd = spi_init_setup(3);
-        if (EMB_spi_fd != -1)
-            printf("SPI initial setup for meter board successful\n");
-        // i2c pps_dac_valueerature sensor initialization
-        Temp_i2c_readwrite_init();
-        // Configuring the SPI_FDs
-        printf("Configuring SPI ... \n");
-
-        if (spi_setup(DAC_spi_fd) < 0)
-        {
-            printf("SPI configuration for DAC failed !\nExiting Program ...\n");
-            fault();
-            fault_flag = 1;
-            exit(-1);
-        }
-        else
-            printf("SPI configuration for DAC successful\n");
-        if (spi_configuration(SPI1SS1_ADC_MCU_fd, 3) < 0)
-        {
-            printf("SPI configuration for SPI1SS1_ADC_MCU_fd failed !\nExiting Program ...\n");
-            fault();
-            fault_flag = 1;
-            exit(-1);
-        }
-        else
-            printf("SPI configuration for SPI1SS1_ADC_MCU_fd successful\n");
-        if (spi_configuration(EMB_spi_fd, 1) < 0)
-        {
-            printf("SPI configuration for EMB failed !\nExiting Program ...\n");
-            fault();
-            fault_flag = 1;
-            exit(-1);
-        }
-        else
-            printf("SPI configuration for EMB successful\n");
-        if (DAC_begin(DAC_spi_fd, spi1_trx) < 0)
-            perror("Error : ");
-        DAC_forw_ref_pow_spi_fd = spi_initial_setup(0);
-        if (DAC_forw_ref_pow_spi_fd != -1)
-            printf("SPI initial setup for reading forward and reflected power in connector successful\n");
-        if (spi_setup(DAC_forw_ref_pow_spi_fd) < 0)
-        {
-            printf("SPI configuration for DAC_FORW_REF_POW failed !\nExiting Program ...\n");
-            exit(-1);
-        }
-        else
-            printf("SPI configuration for DAC_FORW_REF_POW successful\n");
-        if (DAC_begin(DAC_forw_ref_pow_spi_fd, spi2_trx) < 0)
-            perror("Error : ");
-        gpio();
-        pps_dac_setting(0, DAC_spi_fd);
+        // printf("RF is OFF!!\n");
+        set_gpio(RF_STATUS, OFF);
+        interlock_flag = 1;
         system_ready();
     }
-    
+}
+
+void plasma_init(void)
+{
+    // spi initial setup
+    SPI1SS1_ADC_MCU_fd = spi_init_setup(1);
+    if (SPI1SS1_ADC_MCU_fd != -1)
+        printf("SPI initial setup for SPI1SS1_ADC_MCU_fd successful\n");
+    DAC_spi_fd = spi_initial_setup(2);
+    if (DAC_spi_fd != -1)
+        printf("SPI initial setup for pps control successful\n");
+    EMB_spi_fd = spi_init_setup(3);
+    if (EMB_spi_fd != -1)
+        printf("SPI initial setup for meter board successful\n");
+    // i2c pps_dac_valueerature sensor initialization
+    Temp_i2c_readwrite_init();
+    // Configuring the SPI_FDs
+    printf("Configuring SPI ... \n");
+
+    if (spi_setup(DAC_spi_fd) < 0)
+    {
+        printf("SPI configuration for DAC failed !\nExiting Program ...\n");
+        fault();
+        fault_flag = 1;
+        exit(-1);
+    }
+    else
+        printf("SPI configuration for DAC successful\n");
+    if (spi_configuration(SPI1SS1_ADC_MCU_fd, 3) < 0)
+    {
+        printf("SPI configuration for SPI1SS1_ADC_MCU_fd failed !\nExiting Program ...\n");
+        fault();
+        fault_flag = 1;
+        exit(-1);
+    }
+    else
+        printf("SPI configuration for SPI1SS1_ADC_MCU_fd successful\n");
+    if (spi_configuration(EMB_spi_fd, 1) < 0)
+    {
+        printf("SPI configuration for EMB failed !\nExiting Program ...\n");
+        fault();
+        fault_flag = 1;
+        exit(-1);
+    }
+    else
+        printf("SPI configuration for EMB successful\n");
+    if (DAC_begin(DAC_spi_fd, spi1_trx) < 0)
+        perror("Error : ");
+    DAC_forw_ref_pow_spi_fd = spi_initial_setup(0);
+    if (DAC_forw_ref_pow_spi_fd != -1)
+        printf("SPI initial setup for reading forward and reflected power in connector successful\n");
+    if (spi_setup(DAC_forw_ref_pow_spi_fd) < 0)
+    {
+        printf("SPI configuration for DAC_FORW_REF_POW failed !\nExiting Program ...\n");
+        exit(-1);
+    }
+    else
+        printf("SPI configuration for DAC_FORW_REF_POW successful\n");
+    if (DAC_begin(DAC_forw_ref_pow_spi_fd, spi2_trx) < 0)
+        perror("Error : ");
+    gpio();
+    pps_dac_setting(0, DAC_spi_fd);
+    system_ready();
 }
