@@ -131,7 +131,7 @@ uint16_t PG10_EMB_read_register(int spi_fd, uint8_t address, uint8_t channel, ui
 double avg_value(int EMB_spi_fd,int flag)
 {
     double temp=0;
-    double data;
+    uint16_t data;
     if (flag)
     {
         PG10_EMB_read_register(EMB_spi_fd, 0x08, 2, 1, spi4_trx);
@@ -141,7 +141,7 @@ double avg_value(int EMB_spi_fd,int flag)
             // printf("Forward power in channel-2(RAW) : %d\n", value);      
             temp = temp+value;
         }   
-        data = temp/10;
+        data = (uint16_t)temp/10;
         // printf("Forward power in channel-2(RAW)(Avg) : %d\n", data);
         return data;
     }
@@ -155,7 +155,7 @@ double avg_value(int EMB_spi_fd,int flag)
             // printf("Reflected power in channel-1(RAW): %d\n", value_1);        
             temp = temp+value_1;
         }
-        data = temp/10;
+        data = (uint16_t)temp/10;
         // printf("Reflected power in channel-1(RAW)(AVG): %d\n", data);
         return data;
     }
@@ -169,76 +169,75 @@ double calibrated_result(uint16_t value,int flag)
     //flag = 0 for reflected power
     if (flag)
     {
-        if (value >=0 && value <=1162.5)
+        if (value >=0 && value <=1236.5)
         {
             data =0;
             return data;
         }
         // 0 Watt to 3 Watt
-        else if (value>1162.5&& value<=1517.5)
+        else if (value>1236.5 && value<=1456.5)
         {
-            data = (value*0.015428511)-22.93564355;
+            data = (value*0.024896006)-35.78391105;
             data = pow(10,data);
             return data;
         }
         //3 Watt to 100 Watt
-        else if (value >1517.5 && value <=1904.5)
+        else if (value >1456.5 && value <=1890.5)
         {
-            data =(value*0.003935087)-5.494373567;
+            data =(value*0.003508937)-4.633645779;
             data = pow(10,data);
             return data;
         }
         //100 Watt to 200 Watt
-        else if (value >1904.5 && value <=2039.5)
+        else if (value >1890.5 && value <=1992.5)
         {
-            data =(value*0.002245897)-2.277310306;
+            data =(value*0.00297251)-3.619530849;
             data = pow(10,data);
             return data;
         }
         //200 Watt to 300 Watt
-        else if (value >2039.5 && value <=2105)
+        else if (value >1992.5&& value <=2055.5)
         {
-            data =(value*0.002655347)-3.112383178;
+            data =(value*0.002760717)-3.197533397;
             data = pow(10,data);
             return data;
         }
         //300 Watt to 400 Watt
-        else if (value >2105 && value <=2157.5)
+        else if (value >2055.5 && value <=2105.5)
         {
-            data =(value*0.002359079)-2.488739778;
+            data =(value*0.002477033)-2.614419705;
             data = pow(10,data);
             return data;
         }
         //400 Watt to 500 Watt
-        else if (value >2157.5 && value <=2191.5)
+        else if (value >2105.5 && value <=2140.5)
         {
-            data =(value*0.002907789)-3.672582137;
+            data =(value*0.002824709)-3.346452817;
             data = pow(10,data);
             return data;
         }
         //500 Watt to 600 Watt
-        else if (value >2191.5 && value <=2216.5)
+        else if (value >2140.5 && value <=2166.5)
         {
-            data =(value*0.003132541)-4.165125833;
+            data =(value*0.003012059)-3.747473783;
             data = pow(10,data);
             return data;
         }
-        //600 Watt to 750 Watt
-        else if (value >2216.5 && value <=2232)
+        //600 Watt to 620 Watt
+        else if (value >2166.5 && value <=2173.5)
         {
-            data =(value*0.006252259)-11.07998061;
+            data =(value*0.002034348)-1.629264656;
             data = pow(10,data);
             return data;
         }
-      
-        //750 Watt to 1000 Watt
-        else if (value >2232 && value <=2328)
+        /*//70 Watt to 80 Watt
+        else if (value >1820 && value <=1841.5)
         {
-            data =(value*0.001301445)-0.029764363;
+            data =(value*0.0026973)-3.063987704;
             data = pow(10,data);
             return data;
         }
-        /*//80 Watt to 90 Watt
+        //80 Watt to 90 Watt
         else if (value >1841.5 && value <=1844)
         {
             data =(value*0.020461009)-35.77585805;
@@ -336,7 +335,12 @@ double calibrated_result(uint16_t value,int flag)
             data = pow(10,data);
             return data;
         }*/
-        
+        else
+        {
+            //data = (value*0.024896006)-35.78391105;
+            data = (double)700;
+            return data;
+        }
     }
     else 
     {
@@ -463,28 +467,6 @@ double calibrated_result(uint16_t value,int flag)
 //     }
 //     return 0;
 // }
-
-uint8_t choose_channel()
-{
-    int channel_num = 0;
-    printf("choose a channel (1-4) : ");
-    scanf("%d", &channel_num);
-    switch (channel_num)
-    {
-    case 1:
-        return 0;
-    case 2:
-        return 0x08;
-    case 3:
-        return 0x10;
-    case 4:
-        return 0xff;
-    default:
-        printf("Invalid channel chosen !!!\n");
-        return -1;
-    }
-}
-
 uint16_t SPI1SS1_ADC_readRegister(int spi_fd, struct spi_ioc_transfer spi_trx)
 {
     uint16_t output;
