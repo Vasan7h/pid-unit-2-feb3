@@ -169,13 +169,13 @@ int spi_main()
                     else
                     {
                         // logic to calculate DAC value
-                        err_percent = ((error_cal / pow_set_pt) * 100);
+                        error_cal = (pow_set_pt - final_forward_power);
                         printf("err_cal %lf\n", error_cal);
                         printf("powstpt %d\n", pow_set_pt);
                         printf("in else\n");
-                        ctrl_percent = err_percent / (err_percent + pow_set_pt);
+                        ctrl_percent = error_cal / (error_cal + pow_set_pt);
 
-                        ctrl_percent = (((int)(ctrl_percent * 1000)) - 0.8) / 1000;// reducing 0.8% from ctrl perc
+                        //ctrl_percent = (((int)(ctrl_percent * 1000)) - 0.8) / 1000;// reducing 0.8% from ctrl perc
                         
                         // printf("perc_to_reduce_from_shoot_DAC %lf\n", ctrl_percent);
                         pps_dac_value = prev_pps_dac_value + (prev_pps_dac_value * ctrl_percent); 
